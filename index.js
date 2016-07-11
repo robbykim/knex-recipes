@@ -93,4 +93,65 @@ app.post('/recipes', jsonParser, function(req, res) {
   });
 });
 
+// GET REQUEST
+app.get('/recipes', function (req, res) {
+  // DECLARE EMPTY ARRAY THAT WILL BE POPULATED AND OUTPUTED 
+  var recipeList = [];
+  
+  // GETS AN ARRAY OF ALL RECIPE NAMES
+  knex.select('name', 'id')
+  .from('recipes')
+  .then(function(recipeNames) {
+    // ITERATES THROUGH RECIPE NAMES 
+    for (var i = 0; i < recipeNames.length; i++) {
+      // TEMPLATE OBJECT THAT WILL BE POPULATED AND PUSHED INTO RECIPELIST ARRAY
+      var currentRecipe = {
+        name: '',
+        steps: [],
+        tags: []
+      };
+      
+      // SETS NAME TO CURRENT RECIPE NAME
+      currentRecipe.name = recipeNames[i].name;
+      
+      // GETS ALL THE INSTRUCTIONS BASED OFF CURRENT RECIPE ID
+      knex.select('instruction')
+      .from('steps')
+      .where({
+        recipe_id: recipeNames[i].id
+      })
+      .then(function(steps) {
+        // ITERATES THROUGH STEPS AND PUSHES INSTRUCTIONS INTO ARRAY
+        for (var j = 0; j < steps.length; j++) {
+          currentRecipe.steps.push(steps[j].instruction);
+        }
+        
+        // GRABS THE LINKING TABLE TO GET ASSOCIATED TAGS BASED OFF RECIPE ID
+        knex.select('tag_id')
+        .from('recipes_tags')
+        .where({
+          recipe_id: recipeNames[i].id
+        })
+        .then(function(tagIds) {
+          
+          // ITERATES THROUGH TAGS ASSOCIATED WITH RECIPE AND PUSHES TO TAGS ARRAY IN RECIPE OBJECT
+          for (var k = 0; k < tagIds.length; k++) {
+            knex.select('tag')
+            .from('tags')
+            .where({
+              id: tagIds[k]
+            })
+            .then(function(tag) {
+              currentRecipe.tags.push(tag[k]);
+            });
+          }
+        });
+      });
+      // PUSHES CURRENT RECIPE OBJECT TO THE FINAL LIST ARRAY
+      recipeList.push(currentRecipe);
+    }
+  });
+  res.status(200).json(recipeList);
+});
+
 app.listen(process.env.PORT);
